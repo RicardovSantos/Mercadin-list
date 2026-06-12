@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#14532D">
+<title>Mercadin — Controle de compras no mercado</title>
+<style>
+:root{
+  --verde:#14532D;
+  --verde2:#1F7A45;
+  --verde-claro:#E4F0E8;
+  --amarelo:#FFD23F;
+  --amarelo-borda:#E0AF00;
+  --papel:#F4F6F2;
+  --card:#FFFFFF;
+  --tinta:#16201A;
+  --cinza:#66716B;
+  --linha:#DFE5DF;
+  --vermelho:#C2402A;
+  --azul:#1D5FAA;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono","Courier New",monospace;
+  --raio:14px;
+  --sombra:0 1px 3px rgba(22,32,26,.08),0 4px 14px rgba(22,32,26,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);
+  background:var(--papel);
+  color:var(--tinta);
+  min-height:100vh;
+  padding-bottom:84px;
+  font-size:16px;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;font-size:inherit;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+:focus-visible{outline:3px solid var(--azul);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ---------- Cabeçalho ---------- */
+header{
+  background:var(--verde);
+  color:#fff;
+  padding:14px 18px 12px;
+  position:sticky;top:0;z-index:40;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+header .marca{display:flex;align-items:baseline;gap:8px}
+header h1{font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
+header h1 .cesta{font-size:1.1rem}
+header .sub{font-size:.74rem;opacity:.78;font-weight:500}
+
+/* ---------- Navegação inferior ---------- */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:#fff;
+  border-top:1px solid var(--linha);
+  display:flex;
+  padding-bottom:env(safe-area-inset-bottom,0);
+  box-shadow:0 -2px 12px rgba(22,32,26,.07);
+}
+nav button{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:9px 2px 8px;font-size:.68rem;font-weight:600;color:var(--cinza);
+}
+nav button .ico{font-size:1.3rem;line-height:1}
+nav button.ativo{color:var(--verde)}
+nav button.ativo .ico{transform:translateY(-1px)}
+nav button.ativo::after{content:"";display:block;width:18px;height:3px;border-radius:3px;background:var(--amarelo);margin-top:2px}
+
+/* ---------- Abas ---------- */
+main{max-width:560px;margin:0 auto;padding:14px 14px 24px}
+.aba{display:none}
+.aba.ativa{display:block;animation:surge .18s ease}
+@keyframes surge{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+h2{font-size:1.02rem;font-weight:800;margin:18px 2px 10px;letter-spacing:-.01em}
+h2:first-child{margin-top:2px}
+.dica{font-size:.8rem;color:var(--cinza);margin:-6px 2px 12px;line-height:1.45}
+
+/* ---------- Etiqueta de preço (total) — assinatura visual ---------- */
+.etiqueta{
+  position:sticky;top:62px;z-index:30;
+  background:var(--amarelo);
+  border:2px solid var(--amarelo-borda);
+  border-radius:10px;
+  padding:10px 14px 10px 34px;
+  margin-bottom:14px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  box-shadow:0 3px 10px rgba(140,100,0,.22);
+  transform:rotate(-.4deg);
+}
+.etiqueta::before{ /* furo da etiqueta */
+  content:"";position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  width:12px;height:12px;border-radius:50%;
+  background:var(--papel);border:2px solid var(--amarelo-borda);
+}
+.etiqueta .rotulo{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#7A5C00}
+.etiqueta .valor{font-family:var(--mono);font-size:1.7rem;font-weight:700;letter-spacing:-.02em;line-height:1.05}
+.etiqueta .meta{font-size:.72rem;color:#7A5C00;font-weight:600;text-align:right;line-height:1.35}
+
+/* ---------- Cartões e listas ---------- */
+.cartao{background:var(--card);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);padding:14px;margin-bottom:12px}
+.vazio{
+  text-align:center;color:var(--cinza);font-size:.86rem;padding:26px 16px;
+  border:1.5px dashed var(--linha);border-radius:var(--raio);background:#FBFCFA;line-height:1.5;
+}
+.vazio .ico{font-size:1.6rem;display:block;margin-bottom:6px}
+
+.item{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 2px;border-bottom:1px solid var(--linha);
+}
+.item:last-child{border-bottom:none}
+.item .emoji{font-size:1.25rem;width:30px;text-align:center;flex:none}
+.item .info{flex:1;min-width:0}
+.item .nome{font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .det{font-size:.76rem;color:var(--cinza);font-family:var(--mono)}
+.item .subtotal{font-family:var(--mono);font-weight:700;font-size:.95rem;white-space:nowrap}
+.item .acoes{display:flex;gap:2px;flex:none}
+.btn-ico{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--cinza)}
+.btn-ico:active{background:var(--verde-claro)}
+.item.pendente .nome{color:var(--tinta)}
+.item.pendente{background:linear-gradient(0deg,#FFFBEB,#FFFBEB);border-radius:10px;padding-left:8px;padding-right:8px;border-bottom:1px solid #F3E5B0;margin-bottom:4px}
+.tag-falta{font-size:.62rem;font-weight:800;background:var(--amarelo);border-radius:5px;padding:2px 6px;text-transform:uppercase;letter-spacing:.05em;color:#6B5100}
+
+/* ---------- Formulários ---------- */
+.campo{margin-bottom:10px}
+.campo label{display:block;font-size:.74rem;font-weight:700;color:var(--cinza);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.campo input,.campo select{
+  width:100%;padding:11px 12px;border:1.5px solid var(--linha);border-radius:10px;
+  background:#fff;color:var(--tinta);
+}
+.campo input:focus,.campo select:focus{border-color:var(--verde2);outline:none;box-shadow:0 0 0 3px rgba(31,122,69,.14)}
+.linha-campos{display:flex;gap:8px}
+.linha-campos .campo{flex:1;min-width:0}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:13px;border-radius:12px;font-weight:800;font-size:.95rem;
+  background:var(--verde);color:#fff;box-shadow:0 2px 6px rgba(20,83,45,.3);
+}
+.btn:active{transform:translateY(1px)}
+.btn.secundario{background:var(--verde-claro);color:var(--verde);box-shadow:none;border:1.5px solid #C9DECF}
+.btn.amarelo{background:var(--amarelo);color:#5C4700;box-shadow:0 2px 6px rgba(160,120,0,.25)}
+.btn.perigo{background:#FBEAE6;color:var(--vermelho);box-shadow:none;border:1.5px solid #EFC9C0}
+.btn.mini{width:auto;padding:8px 14px;font-size:.8rem;border-radius:9px}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+/* ---------- Autocomplete ---------- */
+.auto-wrap{position:relative}
+.sugestoes{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;
+  background:#fff;border:1.5px solid var(--linha);border-radius:12px;
+  box-shadow:0 10px 30px rgba(22,32,26,.18);overflow:hidden;max-height:240px;overflow-y:auto;
+}
+.sugestoes button{
+  display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;text-align:left;
+  border-bottom:1px solid var(--linha);
+}
+.sugestoes button:last-child{border-bottom:none}
+.sugestoes button:active{background:var(--verde-claro)}
+.sugestoes .s-nome{flex:1;font-weight:600;font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sugestoes .s-preco{font-family:var(--mono);font-size:.78rem;color:var(--verde);font-weight:700}
+
+/* ---------- Cupom fiscal (histórico) ---------- */
+.cupom{
+  background:#fff;border:1px solid var(--linha);border-bottom:none;
+  border-radius:12px 12px 0 0;
+  box-shadow:var(--sombra);
+  margin-bottom:18px;position:relative;
+}
+.cupom::after{ /* picote do cupom */
+  content:"";position:absolute;left:0;right:0;bottom:-9px;height:9px;
+  background:
+    linear-gradient(45deg,transparent 33.33%,#fff 33.33% 66.66%,transparent 66.66%),
+    linear-gradient(-45deg,transparent 33.33%,#fff 33.33% 66.66%,transparent 66.66%);
+  background-size:14px 18px;background-position:0 0;
+  filter:drop-shadow(0 2px 2px rgba(22,32,26,.08));
+}
+.cupom summary{
+  list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;
+}
+.cupom summary::-webkit-details-marker{display:none}
+.cupom .c-data{font-family:var(--mono);font-size:.78rem;color:var(--cinza)}
+.cupom .c-titulo{font-weight:800;font-size:.92rem}
+.cupom .c-total{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:1.02rem}
+.cupom .c-corpo{border-top:1.5px dashed var(--linha);padding:10px 14px 16px;font-family:var(--mono);font-size:.8rem}
+.cupom .c-linha{display:flex;justify-content:space-between;gap:8px;padding:3.5px 0}
+.cupom .c-linha span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cupom .c-rodape{display:flex;justify-content:space-between;border-top:1.5px dashed var(--linha);margin-top:8px;padding-top:8px;font-weight:700}
+.mes-header{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin:20px 2px 10px;
+}
+.mes-header h3{font-size:.95rem;font-weight:800;text-transform:capitalize}
+.mes-header .mes-total{font-family:var(--mono);font-weight:700;color:var(--verde);font-size:.95rem}
+
+/* ---------- Listas de compras (prévia) ---------- */
+.lista-card .lc-topo{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.lista-card .lc-nome{font-weight:800;font-size:.98rem;flex:1}
+.lista-card .lc-meta{font-size:.76rem;color:var(--cinza);margin-bottom:10px}
+.lista-card .lc-est{font-family:var(--mono);font-weight:700;color:var(--verde)}
+.barra-prog{height:6px;background:var(--linha);border-radius:6px;overflow:hidden;margin:8px 0 12px}
+.barra-prog div{height:100%;background:var(--verde2);border-radius:6px;transition:width .25s ease}
+
+/* ---------- Dashboard ---------- */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--linha);border-radius:var(--raio);padding:12px;box-shadow:var(--sombra)}
+.kpi .k-rotulo{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza)}
+.kpi .k-valor{font-family:var(--mono);font-size:1.25rem;font-weight:700;margin-top:3px}
+.kpi .k-sub{font-size:.7rem;color:var(--cinza);margin-top:2px}
+.grafico-meses{display:flex;align-items:flex-end;gap:6px;height:150px;padding:4px 2px 0}
+.gm-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;height:100%;justify-content:flex-end}
+.gm-col .gm-val{font-family:var(--mono);font-size:.58rem;color:var(--cinza);white-space:nowrap}
+.gm-col .gm-barra{width:100%;max-width:34px;background:var(--verde2);border-radius:6px 6px 2px 2px;min-height:3px;cursor:pointer}
+.gm-col.sel .gm-barra{background:var(--amarelo);border:1.5px solid var(--amarelo-borda)}
+.gm-col .gm-mes{font-size:.62rem;font-weight:700;color:var(--cinza);text-transform:capitalize}
+.gm-col.sel .gm-mes{color:var(--tinta)}
+.cat-linha{margin-bottom:10px}
+.cat-linha .ct-topo{display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;margin-bottom:4px}
+.cat-linha .ct-topo .ct-val{font-family:var(--mono);font-weight:700}
+.cat-linha .ct-barra{height:10px;background:var(--linha);border-radius:6px;overflow:hidden}
+.cat-linha .ct-barra div{height:100%;border-radius:6px}
+.top-prod{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--linha);font-size:.86rem}
+.top-prod:last-child{border-bottom:none}
+.top-prod .tp-pos{font-family:var(--mono);font-weight:700;color:var(--cinza);width:20px;flex:none}
+.top-prod .tp-nome{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-prod .tp-val{font-family:var(--mono);font-weight:700}
+
+/* ---------- Modal ---------- */
+.modal-fundo{
+  position:fixed;inset:0;background:rgba(12,20,15,.5);z-index:90;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.modal-fundo.aberto{display:flex}
+.modal{
+  background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;
+  padding:18px 16px calc(18px + env(safe-area-inset-bottom,0));
+  animation:sobe .2s ease;max-height:88vh;overflow-y:auto;
+}
+@keyframes sobe{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+.modal h3{font-size:1.05rem;font-weight:800;margin-bottom:4px}
+.modal .m-sub{font-size:.8rem;color:var(--cinza);margin-bottom:14px}
+.modal .m-botoes{display:flex;gap:8px;margin-top:14px}
+.modal .m-botoes .btn{flex:1}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+  background:var(--tinta);color:#fff;font-size:.85rem;font-weight:600;
+  padding:10px 18px;border-radius:24px;opacity:0;pointer-events:none;z-index:120;
+  transition:all .25s ease;max-width:88vw;text-align:center;
+}
+#toast.mostra{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.aviso-armazenamento{font-size:.72rem;color:var(--cinza);text-align:center;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">
+    <h1><span class="cesta">🧺</span> Mercadin</h1>
+    <span class="sub">seu carrinho sob controle</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= ABA: COMPRA ================= -->
+<section class="aba ativa" id="aba-compra">
+  <div class="etiqueta" aria-live="polite">
+    <div>
+      <div class="rotulo">Total no carrinho</div>
+      <div class="valor" id="totalCarrinho">R$ 0,00</div>
+    </div>
+    <div class="meta" id="metaCarrinho">0 itens</div>
+  </div>
+
+  <div class="cartao">
+    <div class="campo auto-wrap">
+      <label for="inNome">Produto</label>
+      <input id="inNome" type="text" placeholder="Ex.: Arroz 5kg" autocomplete="off" enterkeyhint="next">
+      <div class="sugestoes" id="sugestoes" style="display:none"></div>
+    </div>
+    <div class="linha-campos">
+      <div class="campo" style="flex:.7">
+        <label for="inQtd">Qtd</label>
+        <input id="inQtd" type="text" inputmode="decimal" value="1" enterkeyhint="next">
+      </div>
+      <div class="campo">
+        <label for="inPreco">Preço unit. (R$)</label>
+        <input id="inPreco" type="text" inputmode="decimal" placeholder="0,00" enterkeyhint="done">
+      </div>
+      <div class="campo">
+        <label for="inCat">Categoria</label>
+        <select id="inCat"></select>
+      </div>
+    </div>
+    <button class="btn" id="btnAdd">➕ Adicionar ao carrinho</button>
+  </div>
+
+  <div id="blocoPendentes"></div>
+
+  <h2>🛒 No carrinho</h2>
+  <div class="cartao" id="listaCarrinho"></div>
+
+  <button class="btn amarelo" id="btnFinalizar">✅ Finalizar compra</button>
+  <div style="height:8px"></div>
+  <button class="btn perigo" id="btnLimpar">🗑️ Esvaziar carrinho</button>
+  <p class="aviso-armazenamento" id="avisoStorage"></p>
+</section>
+
+<!-- ================= ABA: LISTAS ================= -->
+<section class="aba" id="aba-listas">
+  <h2>📋 Nova lista de compras</h2>
+  <p class="dica">Monte em casa a lista do que precisa com as quantidades. No mercado, abra a lista e vá colocando os preços.</p>
+  <div class="cartao">
+    <div class="campo">
+      <label for="inListaNome">Nome da lista</label>
+      <input id="inListaNome" type="text" placeholder="Ex.: Compra do mês — junho">
+    </div>
+    <button class="btn secundario" id="btnCriarLista">Criar lista</button>
+  </div>
+
+  <h2>Minhas listas</h2>
+  <div id="containerListas"></div>
+</section>
+
+<!-- ================= ABA: HISTÓRICO ================= -->
+<section class="aba" id="aba-historico">
+  <h2>📅 Compras por mês</h2>
+  <p class="dica">Cada compra finalizada vira um cupom. Toque para ver os itens.</p>
+  <div id="containerHistorico"></div>
+</section>
+
+<!-- ================= ABA: DASHBOARD ================= -->
+<section class="aba" id="aba-dashboard">
+  <h2>📊 Visão geral</h2>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Gastos mês a mês</h2>
+  <p class="dica">Toque em uma barra para ver os detalhes daquele mês.</p>
+  <div class="cartao">
+    <div class="grafico-meses" id="graficoMeses"></div>
+  </div>
+
+  <h2 id="tituloCategorias">Gastos por categoria</h2>
+  <div class="cartao" id="graficoCategorias"></div>
+
+  <h2>Produtos que mais pesaram</h2>
+  <div class="cartao" id="topProdutos"></div>
+</section>
+
+</main>
+
+<!-- ================= NAVEGAÇÃO ================= -->
+<nav>
+  <button class="ativo" data-aba="compra"><span class="ico">🛒</span>Compra</button>
+  <button data-aba="listas"><span class="ico">📋</span>Listas</button>
+  <button data-aba="historico"><span class="ico">📅</span>Histórico</button>
+  <button data-aba="dashboard"><span class="ico">📊</span>Dashboard</button>
+</nav>
+
+<!-- ================= MODAL ================= -->
+<div class="modal-fundo" id="modalFundo">
+  <div class="modal" id="modalCaixa" role="dialog" aria-modal="true"></div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+/* =========================================================
+   MERCADIN — app de compras de mercado
+   Tudo em um arquivo: HTML + CSS + JS
+   ========================================================= */
+
+/* ---------- Categorias ---------- */
+const CATEGORIAS = {
+  mantimentos:{nome:"Mantimentos",emoji:"🍚",cor:"#1F7A45"},
+  limpeza:{nome:"Limpeza",emoji:"🧼",cor:"#1D5FAA"},
+  doces:{nome:"Doces",emoji:"🍬",cor:"#C2407E"},
+  hortifruti:{nome:"Hortifruti",emoji:"🥬",cor:"#5C9E31"},
+  carnes:{nome:"Carnes e frios",emoji:"🥩",cor:"#A8412A"},
+  bebidas:{nome:"Bebidas",emoji:"🥤",cor:"#C28A1E"},
+  higiene:{nome:"Higiene",emoji:"🧴",cor:"#5B4DA8"},
+  padaria:{nome:"Padaria",emoji:"🥖",cor:"#8A6B2F"},
+  outros:{nome:"Outros",emoji:"📦",cor:"#66716B"}
+};
+
+/* ---------- Estado ---------- */
+const KEY = "mercadin-v1";
+let estado = {
+  carrinho:{ itens:[], listaId:null, listaNome:null },
+  listas:[],            // {id,nome,criadaEm,itens:[{nome,qtd,cat}]}
+  compras:[],           // {id,data,itens:[{nome,qtd,preco,cat}],total}
+  produtos:{}           // nome → {cat, ultimoPreco, vezes}
+};
+let modoMemoria = false;
+
+/* ---------- Persistência (claude.ai → localStorage → memória) ---------- */
+async function carregarEstado(){
+  // 1) armazenamento do claude.ai (artefatos)
+  try{
+    if(window.storage){
+      const r = await window.storage.get(KEY);
+      if(r && r.value){ estado = Object.assign(estado, JSON.parse(r.value)); return "claude"; }
+      return "claude-vazio";
+    }
+  }catch(e){ /* chave não existe ou indisponível */ }
+  // 2) localStorage (arquivo salvo no celular/computador)
+  try{
+    const v = localStorage.getItem(KEY);
+    if(v){ estado = Object.assign(estado, JSON.parse(v)); }
+    return "local";
+  }catch(e){}
+  modoMemoria = true;
+  return "memoria";
+}
+
+let salvarTimer = null;
+function salvar(){
+  clearTimeout(salvarTimer);
+  salvarTimer = setTimeout(async ()=>{
+    const s = JSON.stringify(estado);
+    let ok = false;
+    try{ if(window.storage){ await window.storage.set(KEY, s); ok = true; } }catch(e){}
+    try{ localStorage.setItem(KEY, s); ok = true; }catch(e){}
+    if(!ok) modoMemoria = true;
+  }, 250);
+}
+
+/* ---------- Utilidades ---------- */
+const $ = id => document.getElementById(id);
+const fmt = v => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const fmtNum = v => {
+  const n = Number(v)||0;
+  return Number.isInteger(n) ? String(n) : n.toLocaleString("pt-BR",{maximumFractionDigits:3});
+};
+function parseNum(str){
+  if(typeof str === "number") return str;
+  if(!str) return 0;
+  str = String(str).trim().replace(/\s/g,"");
+  if(str.includes(",")) str = str.replace(/\./g,"").replace(",",".");
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
+}
+function chaveMes(dataISO){ return dataISO.slice(0,7); } // "2026-06"
+function nomeMes(chave){
+  const [a,m] = chave.split("-");
+  const d = new Date(Number(a), Number(m)-1, 1);
+  return d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+}
+function nomeMesCurto(chave){
+  const [a,m] = chave.split("-");
+  const d = new Date(Number(a), Number(m)-1, 1);
+  return d.toLocaleDateString("pt-BR",{month:"short"}).replace(".","");
+}
+function escapaHTML(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("mostra");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove("mostra"), 2400);
+}
+function catInfo(c){ return CATEGORIAS[c] || CATEGORIAS.outros; }
+function tituloCaso(s){ s = s.trim().replace(/\s+/g," "); return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* ---------- Totais do carrinho ---------- */
+function totalCarrinho(){
+  return estado.carrinho.itens.filter(i=>!i.pendente)
+    .reduce((s,i)=> s + i.qtd*i.preco, 0);
+}
+function estimativaPendentes(){
+  return estado.carrinho.itens.filter(i=>i.pendente)
+    .reduce((s,i)=>{
+      const p = estado.produtos[i.nome.toLowerCase()];
+      return s + (p && p.ultimoPreco ? i.qtd*p.ultimoPreco : 0);
+    },0);
+}
+
+/* =========================================================
+   ABA COMPRA
+   ========================================================= */
+function renderCompra(){
+  const itens = estado.carrinho.itens;
+  const comprados = itens.filter(i=>!i.pendente);
+  const pendentes = itens.filter(i=>i.pendente);
+  const total = totalCarrinho();
+
+  $("totalCarrinho").textContent = fmt(total);
+  const qtdItens = comprados.length;
+  let meta = qtdItens + (qtdItens===1?" item":" itens");
+  if(pendentes.length){
+    const est = estimativaPendentes();
+    meta += "<br>faltam " + pendentes.length;
+    if(est>0) meta += "<br>previsão ~" + fmt(total+est);
+  }
+  if(estado.carrinho.listaNome) meta += "<br>📋 " + escapaHTML(estado.carrinho.listaNome);
+  $("metaCarrinho").innerHTML = meta;
+
+  /* pendentes (itens da lista ainda sem preço) */
+  const bloco = $("blocoPendentes");
+  if(pendentes.length){
+    bloco.innerHTML = "<h2>⏳ Faltando pegar <span style='font-weight:600;color:var(--cinza);font-size:.8rem'>(toque para colocar o preço)</span></h2>" +
+      "<div class='cartao'>" +
+      pendentes.map(i=>{
+        const c = catInfo(i.cat);
+        const p = estado.produtos[i.nome.toLowerCase()];
+        const ult = p && p.ultimoPreco ? "último: "+fmt(p.ultimoPreco) : "sem preço anterior";
+        return `<div class="item pendente" role="button" tabindex="0" data-acao="precificar" data-id="${i.id}">
+          <span class="emoji">${c.emoji}</span>
+          <div class="info">
+            <div class="nome">${escapaHTML(i.nome)}</div>
+            <div class="det">${fmtNum(i.qtd)}x · ${ult}</div>
+          </div>
+          <span class="tag-falta">pôr preço</span>
+        </div>`;
+      }).join("") + "</div>";
+  } else bloco.innerHTML = "";
+
+  /* itens no carrinho */
+  const lc = $("listaCarrinho");
+  if(!comprados.length){
+    lc.innerHTML = `<div class="vazio" style="border:none;background:none;padding:18px 6px">
+      <span class="ico">🛒</span>Carrinho vazio. Adicione o primeiro produto acima${pendentes.length? " ou toque em um item da lista para pôr o preço":""}.</div>`;
+  } else {
+    lc.innerHTML = comprados.map(i=>{
+      const c = catInfo(i.cat);
+      return `<div class="item">
+        <span class="emoji">${c.emoji}</span>
+        <div class="info">
+          <div class="nome">${escapaHTML(i.nome)}</div>
+          <div class="det">${fmtNum(i.qtd)} × ${fmt(i.preco)}</div>
+        </div>
+        <span class="subtotal">${fmt(i.qtd*i.preco)}</span>
+        <div class="acoes">
+          <button class="btn-ico" data-acao="editar" data-id="${i.id}" aria-label="Editar ${escapaHTML(i.nome)}">✏️</button>
+          <button class="btn-ico" data-acao="remover" data-id="${i.id}" aria-label="Remover ${escapaHTML(i.nome)}">✖️</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  $("btnFinalizar").disabled = comprados.length===0;
+  $("btnLimpar").style.display = itens.length ? "flex" : "none";
+}
+
+/* ---------- Adicionar item ---------- */
+function adicionarItem(){
+  const nome = tituloCaso($("inNome").value);
+  const qtd = parseNum($("inQtd").value) || 1;
+  const preco = parseNum($("inPreco").value);
+  const cat = $("inCat").value;
+  if(!nome){ toast("Digite o nome do produto"); $("inNome").focus(); return; }
+  if(preco<=0){ toast("Informe o preço do produto"); $("inPreco").focus(); return; }
+
+  // se existir pendente com mesmo nome, ele vira comprado
+  const pend = estado.carrinho.itens.find(i=>i.pendente && i.nome.toLowerCase()===nome.toLowerCase());
+  if(pend){
+    pend.qtd = qtd; pend.preco = preco; pend.cat = cat; pend.pendente = false;
+  } else {
+    estado.carrinho.itens.push({id:uid(), nome, qtd, preco, cat, pendente:false});
+  }
+  registrarProduto(nome, cat, preco);
+  $("inNome").value=""; $("inQtd").value="1"; $("inPreco").value="";
+  fecharSugestoes();
+  salvar(); renderCompra();
+  toast("✔ "+nome+" adicionado — "+fmt(qtd*preco));
+  $("inNome").focus();
+}
+
+function registrarProduto(nome, cat, preco){
+  const k = nome.toLowerCase();
+  const p = estado.produtos[k] || {nome, cat, ultimoPreco:0, vezes:0};
+  p.nome = nome; p.cat = cat; p.vezes++;
+  if(preco>0) p.ultimoPreco = preco;
+  estado.produtos[k] = p;
+}
+
+/* ---------- Autocomplete ---------- */
+function atualizarSugestoes(){
+  const v = $("inNome").value.trim().toLowerCase();
+  const caixa = $("sugestoes");
+  if(v.length<1){ fecharSugestoes(); return; }
+  const achados = Object.values(estado.produtos)
+    .filter(p=>p.nome.toLowerCase().includes(v))
+    .sort((a,b)=> b.vezes - a.vezes)
+    .slice(0,6);
+  if(!achados.length){ fecharSugestoes(); return; }
+  caixa.innerHTML = achados.map(p=>{
+    const c = catInfo(p.cat);
+    return `<button type="button" data-nome="${escapaHTML(p.nome)}">
+      <span>${c.emoji}</span>
+      <span class="s-nome">${escapaHTML(p.nome)}</span>
+      <span class="s-preco">${p.ultimoPreco?fmt(p.ultimoPreco):""}</span>
+    </button>`;
+  }).join("");
+  caixa.style.display = "block";
+}
+function fecharSugestoes(){ $("sugestoes").style.display="none"; }
+function escolherSugestao(nome){
+  const p = estado.produtos[nome.toLowerCase()];
+  $("inNome").value = p.nome;
+  $("inCat").value = p.cat in CATEGORIAS ? p.cat : "outros";
+  if(p.ultimoPreco) $("inPreco").value = p.ultimoPreco.toFixed(2).replace(".",",");
+  fecharSugestoes();
+  $("inQtd").focus(); $("inQtd").select();
+}
+
+/* ---------- Modal genérico ---------- */
+function abrirModal(html){
+  $("modalCaixa").innerHTML = html;
+  $("modalFundo").classList.add("aberto");
+}
+function fecharModal(){ $("modalFundo").classList.remove("aberto"); }
+
+/* ---------- Editar / precificar item do carrinho ---------- */
+function modalItem(id){
+  const item = estado.carrinho.itens.find(i=>i.id===id);
+  if(!item) return;
+  const c = catInfo(item.cat);
+  const p = estado.produtos[item.nome.toLowerCase()];
+  const dicaPreco = item.pendente && p && p.ultimoPreco
+    ? `<p class="m-sub">Da última vez você pagou <b>${fmt(p.ultimoPreco)}</b>.</p>` : "";
+  abrirModal(`
+    <h3>${c.emoji} ${escapaHTML(item.nome)}</h3>
+    ${dicaPreco || '<p class="m-sub">Ajuste a quantidade e o preço da etiqueta.</p>'}
+    <div class="linha-campos">
+      <div class="campo" style="flex:.7">
+        <label for="mQtd">Qtd</label>
+        <input id="mQtd" type="text" inputmode="decimal" value="${fmtNum(item.qtd)}">
+      </div>
+      <div class="campo">
+        <label for="mPreco">Preço unit. (R$)</label>
+        <input id="mPreco" type="text" inputmode="decimal" value="${item.preco?item.preco.toFixed(2).replace(".",","):""}" placeholder="0,00">
+      </div>
+    </div>
+    <div class="campo">
+      <label for="mCat">Categoria</label>
+      <select id="mCat">${opcoesCategoria(item.cat)}</select>
+    </div>
+    <div class="m-botoes">
+      <button class="btn secundario" onclick="fecharModal()">Cancelar</button>
+      <button class="btn" onclick="confirmarItem('${id}')">Salvar no carrinho</button>
+    </div>`);
+  setTimeout(()=>{ const f=$("mPreco"); f.focus(); f.select(); }, 60);
+}
+function confirmarItem(id){
+  const item = estado.carrinho.itens.find(i=>i.id===id);
+  if(!item) return;
+  const qtd = parseNum($("mQtd").value)||1;
+  const preco = parseNum($("mPreco").value);
+  if(preco<=0){ toast("Informe o preço"); $("mPreco").focus(); return; }
+  item.qtd = qtd; item.preco = preco; item.cat = $("mCat").value; item.pendente = false;
+  registrarProduto(item.nome, item.cat, preco);
+  salvar(); fecharModal(); renderCompra();
+  toast("✔ "+item.nome+" — "+fmt(qtd*preco));
+}
+function removerItem(id){
+  estado.carrinho.itens = estado.carrinho.itens.filter(i=>i.id!==id);
+  salvar(); renderCompra();
+}
+
+/* ---------- Finalizar compra ---------- */
+function modalFinalizar(){
+  const comprados = estado.carrinho.itens.filter(i=>!i.pendente);
+  if(!comprados.length) return;
+  const pend = estado.carrinho.itens.filter(i=>i.pendente).length;
+  const hoje = new Date();
+  abrirModal(`
+    <h3>Finalizar compra</h3>
+    <p class="m-sub">${comprados.length} ${comprados.length===1?"item":"itens"} · ${hoje.toLocaleDateString("pt-BR")}${pend?` · <b style="color:var(--vermelho)">${pend} sem preço serão descartados</b>`:""}</p>
+    <div class="etiqueta" style="position:static;transform:none;margin-bottom:6px">
+      <div>
+        <div class="rotulo">Total da compra</div>
+        <div class="valor">${fmt(totalCarrinho())}</div>
+      </div>
+    </div>
+    <div class="m-botoes">
+      <button class="btn secundario" onclick="fecharModal()">Voltar</button>
+      <button class="btn amarelo" onclick="finalizarCompra()">Confirmar ✅</button>
+    </div>`);
+}
+function finalizarCompra(){
+  const comprados = estado.carrinho.itens.filter(i=>!i.pendente);
+  if(!comprados.length) return;
+  const agora = new Date();
+  const compra = {
+    id: uid(),
+    data: agora.toISOString(),
+    lista: estado.carrinho.listaNome || null,
+    itens: comprados.map(i=>({nome:i.nome,qtd:i.qtd,preco:i.preco,cat:i.cat})),
+    total: totalCarrinho()
+  };
+  estado.compras.push(compra);
+  comprados.forEach(i=>registrarProduto(i.nome,i.cat,i.preco));
+  estado.carrinho = {itens:[],listaId:null,listaNome:null};
+  salvar(); fecharModal();
+  renderCompra(); renderHistorico(); renderDashboard();
+  trocarAba("historico");
+  toast("🧾 Compra de "+fmt(compra.total)+" salva em "+nomeMes(chaveMes(compra.data)));
+}
+function modalLimparCarrinho(){
+  abrirModal(`
+    <h3>Esvaziar carrinho?</h3>
+    <p class="m-sub">Todos os itens do carrinho atual serão descartados. Nada do histórico será apagado.</p>
+    <div class="m-botoes">
+      <button class="btn secundario" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" onclick="(function(){estado.carrinho={itens:[],listaId:null,listaNome:null};salvar();fecharModal();renderCompra();})()">Esvaziar</button>
+    </div>`);
+}
+
+/* =========================================================
+   ABA LISTAS
+   ========================================================= */
+function renderListas(){
+  const cont = $("containerListas");
+  if(!estado.listas.length){
+    cont.innerHTML = `<div class="vazio"><span class="ico">📝</span>Nenhuma lista ainda.<br>Crie a primeira acima e adicione os itens com a quantidade.</div>`;
+    return;
+  }
+  cont.innerHTML = estado.listas.slice().reverse().map(l=>{
+    const est = l.itens.reduce((s,i)=>{
+      const p = estado.produtos[i.nome.toLowerCase()];
+      return s + (p&&p.ultimoPreco? i.qtd*p.ultimoPreco : 0);
+    },0);
+    const comEst = l.itens.filter(i=>{const p=estado.produtos[i.nome.toLowerCase()];return p&&p.ultimoPreco;}).length;
+    return `<div class="cartao lista-card">
+      <div class="lc-topo">
+        <span style="font-size:1.3rem">📋</span>
+        <span class="lc-nome">${escapaHTML(l.nome)}</span>
+        <button class="btn-ico" data-acao="lista-del" data-id="${l.id}" aria-label="Apagar lista">🗑️</button>
+      </div>
+      <div class="lc-meta">${l.itens.length} ${l.itens.length===1?"item":"itens"}${est>0?` · previsão <span class="lc-est">${fmt(est)}</span> <span style="opacity:.7">(${comEst}/${l.itens.length} com preço anterior)</span>`:""}</div>
+      ${l.itens.length? `<div style="font-size:.82rem;color:var(--cinza);margin-bottom:10px;line-height:1.6">${l.itens.map(i=>`${catInfo(i.cat).emoji} ${escapaHTML(i.nome)} <b>(${fmtNum(i.qtd)})</b>`).join(" · ")}</div>`:""}
+      <div style="display:flex;gap:8px">
+        <button class="btn secundario mini" data-acao="lista-editar" data-id="${l.id}">✏️ Itens</button>
+        <button class="btn mini" style="flex:1" data-acao="lista-iniciar" data-id="${l.id}" ${l.itens.length? "":"disabled"}>🛒 Ir às compras com esta lista</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function criarLista(){
+  const nome = tituloCaso($("inListaNome").value);
+  if(!nome){ toast("Dê um nome para a lista"); $("inListaNome").focus(); return; }
+  const lista = {id:uid(), nome, criadaEm:new Date().toISOString(), itens:[]};
+  estado.listas.push(lista);
+  $("inListaNome").value="";
+  salvar(); renderListas();
+  modalEditarLista(lista.id);
+}
+
+function modalEditarLista(id){
+  const l = estado.listas.find(x=>x.id===id);
+  if(!l) return;
+  const linhas = l.itens.map((i,idx)=>{
+    const c = catInfo(i.cat);
+    return `<div class="item">
+      <span class="emoji">${c.emoji}</span>
+      <div class="info"><div class="nome">${escapaHTML(i.nome)}</div><div class="det">${fmtNum(i.qtd)}x · ${c.nome}</div></div>
+      <button class="btn-ico" onclick="removerItemLista('${id}',${idx})" aria-label="Remover">✖️</button>
+    </div>`;
+  }).join("") || `<div class="vazio" style="padding:14px"><span class="ico">🧺</span>Lista vazia — adicione o que precisa comprar.</div>`;
+  abrirModal(`
+    <h3>📋 ${escapaHTML(l.nome)}</h3>
+    <p class="m-sub">Adicione os produtos e quantidades. O preço você coloca no mercado.</p>
+    <div class="campo auto-wrap">
+      <label for="mlNome">Produto</label>
+      <input id="mlNome" type="text" placeholder="Ex.: Detergente" autocomplete="off">
+      <div class="sugestoes" id="mlSugestoes" style="display:none"></div>
+    </div>
+    <div class="linha-campos">
+      <div class="campo" style="flex:.6">
+        <label for="mlQtd">Qtd</label>
+        <input id="mlQtd" type="text" inputmode="decimal" value="1">
+      </div>
+      <div class="campo">
+        <label for="mlCat">Categoria</label>
+        <select id="mlCat">${opcoesCategoria("mantimentos")}</select>
+      </div>
+    </div>
+    <button class="btn secundario" onclick="addItemLista('${id}')">➕ Adicionar à lista</button>
+    <h2 style="margin-top:16px">Itens (${l.itens.length})</h2>
+    <div>${linhas}</div>
+    <div class="m-botoes"><button class="btn" onclick="fecharModal()">Pronto</button></div>`);
+  const inp = $("mlNome");
+  inp.addEventListener("input", ()=>autocompleteModal(inp, $("mlSugestoes"), $("mlCat")));
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addItemLista(id); } });
+  $("mlQtd").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addItemLista(id); } });
+  setTimeout(()=>inp.focus(),60);
+}
+function autocompleteModal(input, caixa, selCat){
+  const v = input.value.trim().toLowerCase();
+  if(v.length<1){ caixa.style.display="none"; return; }
+  const achados = Object.values(estado.produtos)
+    .filter(p=>p.nome.toLowerCase().includes(v))
+    .sort((a,b)=>b.vezes-a.vezes).slice(0,5);
+  if(!achados.length){ caixa.style.display="none"; return; }
+  caixa.innerHTML = achados.map(p=>`<button type="button" data-n="${escapaHTML(p.nome)}">
+    <span>${catInfo(p.cat).emoji}</span><span class="s-nome">${escapaHTML(p.nome)}</span>
+    <span class="s-preco">${p.ultimoPreco?fmt(p.ultimoPreco):""}</span></button>`).join("");
+  caixa.style.display="block";
+  caixa.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    const p = estado.produtos[b.dataset.n.toLowerCase()];
+    input.value = p.nome;
+    if(p.cat in CATEGORIAS) selCat.value = p.cat;
+    caixa.style.display="none";
+  }));
+}
+function addItemLista(id){
+  const l = estado.listas.find(x=>x.id===id); if(!l) return;
+  const nome = tituloCaso($("mlNome").value);
+  const qtd = parseNum($("mlQtd").value)||1;
+  const cat = $("mlCat").value;
+  if(!nome){ toast("Digite o nome do produto"); return; }
+  const exist = l.itens.find(i=>i.nome.toLowerCase()===nome.toLowerCase());
+  if(exist){ exist.qtd = qtd; exist.cat = cat; }
+  else l.itens.push({nome,qtd,cat});
+  const k = nome.toLowerCase();
+  if(!estado.produtos[k]) estado.produtos[k]={nome,cat,ultimoPreco:0,vezes:0};
+  salvar(); renderListas(); modalEditarLista(id);
+}
+function removerItemLista(id, idx){
+  const l = estado.listas.find(x=>x.id===id); if(!l) return;
+  l.itens.splice(idx,1);
+  salvar(); renderListas(); modalEditarLista(id);
+}
+function apagarLista(id){
+  const l = estado.listas.find(x=>x.id===id); if(!l) return;
+  abrirModal(`
+    <h3>Apagar a lista “${escapaHTML(l.nome)}”?</h3>
+    <p class="m-sub">Os itens dessa lista serão perdidos. O histórico de compras não muda.</p>
+    <div class="m-botoes">
+      <button class="btn secundario" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" onclick="(function(){estado.listas=estado.listas.filter(x=>x.id!=='${id}');salvar();fecharModal();renderListas();})()">Apagar</button>
+    </div>`);
+}
+function iniciarCompraComLista(id){
+  const l = estado.listas.find(x=>x.id===id); if(!l || !l.itens.length) return;
+  const fazer = ()=>{
+    estado.carrinho = {
+      listaId:l.id, listaNome:l.nome,
+      itens: l.itens.map(i=>({id:uid(), nome:i.nome, qtd:i.qtd, preco:0, cat:i.cat, pendente:true}))
+    };
+    salvar(); fecharModal(); renderCompra(); trocarAba("compra");
+    toast("🛒 Lista “"+l.nome+"” carregada — toque nos itens para pôr o preço");
+  };
+  if(estado.carrinho.itens.length){
+    abrirModal(`
+      <h3>Substituir o carrinho atual?</h3>
+      <p class="m-sub">Já existem itens no carrinho. Ao carregar a lista “${escapaHTML(l.nome)}”, o carrinho atual será descartado.</p>
+      <div class="m-botoes">
+        <button class="btn secundario" onclick="fecharModal()">Cancelar</button>
+        <button class="btn" id="btnConfirmaLista">Carregar lista</button>
+      </div>`);
+    $("btnConfirmaLista").addEventListener("click", fazer);
+  } else fazer();
+}
+
+/* =========================================================
+   ABA HISTÓRICO
+   ========================================================= */
+function renderHistorico(){
+  const cont = $("containerHistorico");
+  if(!estado.compras.length){
+    cont.innerHTML = `<div class="vazio"><span class="ico">🧾</span>Nenhuma compra finalizada ainda.<br>Quando você finalizar uma compra na aba <b>Compra</b>, o cupom aparece aqui, organizado mês a mês.</div>`;
+    return;
+  }
+  const porMes = {};
+  estado.compras.forEach(c=>{
+    const k = chaveMes(c.data);
+    (porMes[k] = porMes[k]||[]).push(c);
+  });
+  const meses = Object.keys(porMes).sort().reverse();
+  cont.innerHTML = meses.map(k=>{
+    const compras = porMes[k].slice().sort((a,b)=>b.data.localeCompare(a.data));
+    const totalMes = compras.reduce((s,c)=>s+c.total,0);
+    return `<div class="mes-header"><h3>${nomeMes(k)}</h3><span class="mes-total">${fmt(totalMes)}</span></div>` +
+      compras.map(c=>{
+        const d = new Date(c.data);
+        return `<details class="cupom">
+          <summary>
+            <span style="font-size:1.2rem">🧾</span>
+            <div>
+              <div class="c-titulo">${c.lista?escapaHTML(c.lista):"Compra de "+d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</div>
+              <div class="c-data">${d.toLocaleDateString("pt-BR")} · ${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${c.itens.length} ${c.itens.length===1?"item":"itens"}</div>
+            </div>
+            <span class="c-total">${fmt(c.total)}</span>
+          </summary>
+          <div class="c-corpo">
+            ${c.itens.map(i=>`<div class="c-linha"><span>${catInfo(i.cat).emoji} ${escapaHTML(i.nome)} ×${fmtNum(i.qtd)}</span><span>${fmt(i.qtd*i.preco)}</span></div>`).join("")}
+            <div class="c-rodape"><span>TOTAL</span><span>${fmt(c.total)}</span></div>
+            <div style="text-align:right;margin-top:10px">
+              <button class="btn perigo mini" data-acao="compra-del" data-id="${c.id}">Apagar este cupom</button>
+            </div>
+          </div>
+        </details>`;
+      }).join("");
+  }).join("");
+}
+function apagarCompra(id){
+  const c = estado.compras.find(x=>x.id===id); if(!c) return;
+  abrirModal(`
+    <h3>Apagar cupom de ${fmt(c.total)}?</h3>
+    <p class="m-sub">A compra de ${new Date(c.data).toLocaleDateString("pt-BR")} sairá do histórico e do dashboard.</p>
+    <div class="m-botoes">
+      <button class="btn secundario" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" onclick="(function(){estado.compras=estado.compras.filter(x=>x.id!=='${id}');salvar();fecharModal();renderHistorico();renderDashboard();})()">Apagar</button>
+    </div>`);
+}
+
+/* =========================================================
+   ABA DASHBOARD
+   ========================================================= */
+let mesSelecionado = null;
+
+function mesesComDados(){
+  const set = new Set(estado.compras.map(c=>chaveMes(c.data)));
+  return Array.from(set).sort();
+}
+function totalDoMes(k){
+  return estado.compras.filter(c=>chaveMes(c.data)===k).reduce((s,c)=>s+c.total,0);
+}
+
+function renderDashboard(){
+  const kpis = $("kpis");
+  const gm = $("graficoMeses");
+  const gc = $("graficoCategorias");
+  const tp = $("topProdutos");
+
+  if(!estado.compras.length){
+    kpis.innerHTML = "";
+    gm.innerHTML = `<div class="vazio" style="border:none;width:100%;align-self:center">Sem compras ainda.</div>`;
+    gc.innerHTML = `<div class="vazio" style="border:none"><span class="ico">📊</span>O dashboard ganha vida depois da sua primeira compra finalizada.</div>`;
+    tp.innerHTML = `<div class="vazio" style="border:none"><span class="ico">🏆</span>Sem dados por enquanto.</div>`;
+    return;
+  }
+
+  const meses = mesesComDados();
+  if(!mesSelecionado || !meses.includes(mesSelecionado)) mesSelecionado = meses[meses.length-1];
+
+  /* KPIs */
+  const agoraK = chaveMes(new Date().toISOString());
+  const totalMesAtual = totalDoMes(agoraK);
+  const mesAnt = (()=>{ const d=new Date(); d.setMonth(d.getMonth()-1); return chaveMes(d.toISOString()); })();
+  const totalAnt = totalDoMes(mesAnt);
+  let varTxt = "—", varCor = "var(--cinza)";
+  if(totalAnt>0){
+    const dif = (totalMesAtual-totalAnt)/totalAnt*100;
+    varTxt = (dif>=0?"+":"")+dif.toFixed(0)+"% vs. mês passado";
+    varCor = dif>0 ? "var(--vermelho)" : "var(--verde)";
+  }
+  const mediaMes = meses.reduce((s,k)=>s+totalDoMes(k),0)/meses.length;
+  kpis.innerHTML = `
+    <div class="kpi">
+      <div class="k-rotulo">Este mês</div>
+      <div class="k-valor">${fmt(totalMesAtual)}</div>
+      <div class="k-sub" style="color:${varCor};font-weight:700">${varTxt}</div>
+    </div>
+    <div class="kpi">
+      <div class="k-rotulo">Média mensal</div>
+      <div class="k-valor">${fmt(mediaMes)}</div>
+      <div class="k-sub">${estado.compras.length} compras · ${meses.length} ${meses.length===1?"mês":"meses"}</div>
+    </div>`;
+
+  /* gráfico mês a mês (últimos 12 com dados) */
+  const ult = meses.slice(-12);
+  const maxV = Math.max(...ult.map(totalDoMes), 1);
+  gm.innerHTML = ult.map(k=>{
+    const v = totalDoMes(k);
+    const h = Math.max(4, Math.round(v/maxV*100));
+    return `<div class="gm-col ${k===mesSelecionado?"sel":""}" data-mes="${k}" role="button" tabindex="0" aria-label="${nomeMes(k)}: ${fmt(v)}">
+      <span class="gm-val">${v>=1000? "R$"+(v/1000).toFixed(1).replace(".",",")+"k" : "R$"+Math.round(v)}</span>
+      <div class="gm-barra" style="height:${h}%"></div>
+      <span class="gm-mes">${nomeMesCurto(k)}</span>
+    </div>`;
+  }).join("");
+  gm.querySelectorAll(".gm-col").forEach(col=>{
+    const f = ()=>{ mesSelecionado = col.dataset.mes; renderDashboard(); };
+    col.addEventListener("click", f);
+    col.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();f();} });
+  });
+
+  /* categorias do mês selecionado */
+  $("tituloCategorias").textContent = "Gastos por categoria — " + nomeMes(mesSelecionado);
+  const comprasMes = estado.compras.filter(c=>chaveMes(c.data)===mesSelecionado);
+  const porCat = {};
+  comprasMes.forEach(c=>c.itens.forEach(i=>{
+    porCat[i.cat] = (porCat[i.cat]||0) + i.qtd*i.preco;
+  }));
+  const totalSel = Object.values(porCat).reduce((s,v)=>s+v,0) || 1;
+  const cats = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+  gc.innerHTML = cats.map(([k,v])=>{
+    const c = catInfo(k);
+    const pct = v/totalSel*100;
+    return `<div class="cat-linha">
+      <div class="ct-topo"><span>${c.emoji} ${c.nome}</span><span class="ct-val">${fmt(v)} <span style="color:var(--cinza);font-weight:600;font-size:.72rem">(${pct.toFixed(0)}%)</span></span></div>
+      <div class="ct-barra"><div style="width:${pct}%;background:${c.cor}"></div></div>
+    </div>`;
+  }).join("") || `<div class="vazio" style="border:none">Sem itens neste mês.</div>`;
+
+  /* top produtos do mês selecionado */
+  const porProd = {};
+  comprasMes.forEach(c=>c.itens.forEach(i=>{
+    porProd[i.nome] = (porProd[i.nome]||0) + i.qtd*i.preco;
+  }));
+  const top = Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  tp.innerHTML = top.map(([n,v],i)=>`
+    <div class="top-prod">
+      <span class="tp-pos">${i+1}º</span>
+      <span class="tp-nome">${escapaHTML(n)}</span>
+      <span class="tp-val">${fmt(v)}</span>
+    </div>`).join("") || `<div class="vazio" style="border:none">Sem dados.</div>`;
+}
+
+/* =========================================================
+   NAVEGAÇÃO & EVENTOS
+   ========================================================= */
+function trocarAba(nome){
+  document.querySelectorAll(".aba").forEach(a=>a.classList.remove("ativa"));
+  $("aba-"+nome).classList.add("ativa");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("ativo", b.dataset.aba===nome));
+  window.scrollTo({top:0});
+  if(nome==="dashboard") renderDashboard();
+}
+function opcoesCategoria(sel){
+  return Object.entries(CATEGORIAS)
+    .map(([k,c])=>`<option value="${k}" ${k===sel?"selected":""}>${c.emoji} ${c.nome}</option>`).join("");
+}
+
+function ligarEventos(){
+  document.querySelectorAll("nav button").forEach(b=>
+    b.addEventListener("click", ()=>trocarAba(b.dataset.aba)));
+
+  $("btnAdd").addEventListener("click", adicionarItem);
+  $("btnFinalizar").addEventListener("click", modalFinalizar);
+  $("btnLimpar").addEventListener("click", modalLimparCarrinho);
+  $("btnCriarLista").addEventListener("click", criarLista);
+  $("inListaNome").addEventListener("keydown", e=>{ if(e.key==="Enter") criarLista(); });
+
+  $("inNome").addEventListener("input", atualizarSugestoes);
+  $("inNome").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("inQtd").focus(); $("inQtd").select(); } });
+  $("inQtd").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("inPreco").focus(); } });
+  $("inPreco").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); adicionarItem(); } });
+
+  $("sugestoes").addEventListener("click", e=>{
+    const b = e.target.closest("button[data-nome]");
+    if(b) escolherSugestao(b.dataset.nome);
+  });
+  document.addEventListener("click", e=>{
+    if(!e.target.closest(".auto-wrap")) fecharSugestoes();
+  });
+
+  /* ações delegadas (carrinho, listas, histórico) */
+  document.body.addEventListener("click", e=>{
+    const el = e.target.closest("[data-acao]");
+    if(!el) return;
+    const {acao,id} = el.dataset;
+    if(acao==="editar"||acao==="precificar") modalItem(id);
+    else if(acao==="remover") removerItem(id);
+    else if(acao==="lista-editar") modalEditarLista(id);
+    else if(acao==="lista-del") apagarLista(id);
+    else if(acao==="lista-iniciar") iniciarCompraComLista(id);
+    else if(acao==="compra-del") apagarCompra(id);
+  });
+  document.body.addEventListener("keydown", e=>{
+    const el = e.target.closest("[data-acao='precificar']");
+    if(el && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); modalItem(el.dataset.id); }
+  });
+
+  $("modalFundo").addEventListener("click", e=>{ if(e.target===e.currentTarget) fecharModal(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") fecharModal(); });
+}
+
+/* ---------- Inicialização ---------- */
+(async function(){
+  $("inCat").innerHTML = opcoesCategoria("mantimentos");
+  const origem = await carregarEstado();
+  ligarEventos();
+  renderCompra(); renderListas(); renderHistorico(); renderDashboard();
+  const aviso = $("avisoStorage");
+  if(modoMemoria){
+    aviso.textContent = "⚠️ Sem armazenamento disponível: os dados duram só enquanto a página estiver aberta.";
+  } else if(origem==="local"){
+    aviso.textContent = "💾 Seus dados ficam salvos neste navegador, mês a mês — pode fechar e voltar quando quiser.";
+  } else {
+    aviso.textContent = "💾 Seus dados ficam salvos automaticamente, mês a mês.";
+  }
+})();
+</script>
+</body>
+</html>
