@@ -402,24 +402,112 @@ let estado = {
   produtos:{}           // nome → {cat, ultimoPreco, vezes}
 };
 let modoMemoria = false;
+let modoArmazenamento = "";   // "indexeddb" | "local" | "memoria"
 
-/* ---------- Persistência (claude.ai → localStorage → memória) ---------- */
-async function carregarEstado(){
-  // 1) armazenamento do claude.ai (artefatos)
+/* =========================================================
+   PERSISTÊNCIA — IndexedDB (principal) → localStorage → memória
+   IndexedDB é durável e tem cota grande: ideal para guardar
+   tudo no celular sem perder os dados ao fechar o app.
+   ========================================================= */
+const DB_NOME = "mercadin-db";
+const DB_LOJA = "estado";
+const DB_VERSAO = 1;
+let _dbPromise = null;
+
+function abrirDB(){
+  if(_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject)=>{
+    if(!("indexedDB" in window) || !window.indexedDB){ reject(new Error("IndexedDB indisponível")); return; }
+    let req;
+    try{ req = indexedDB.open(DB_NOME, DB_VERSAO); }
+    catch(e){ reject(e); return; }
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(DB_LOJA)) db.createObjectStore(DB_LOJA);
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror   = ()=> reject(req.error || new Error("Falha ao abrir IndexedDB"));
+    req.onblocked = ()=> reject(new Error("IndexedDB bloqueado"));
+  });
+  return _dbPromise;
+}
+function idbGet(chave){
+  return abrirDB().then(db => new Promise((resolve, reject)=>{
+    const tx = db.transaction(DB_LOJA, "readonly");
+    const req = tx.objectStore(DB_LOJA).get(chave);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror   = ()=> reject(req.error);
+  }));
+}
+function idbSet(chave, valor){
+  return abrirDB().then(db => new Promise((resolve, reject)=>{
+    const tx = db.transaction(DB_LOJA, "readwrite");
+    tx.objectStore(DB_LOJA).put(valor, chave);
+    tx.oncomplete = ()=> resolve(true);
+    tx.onerror    = ()=> reject(tx.error);
+    tx.onabort    = ()=> reject(tx.error);
+  }));
+}
+
+/* Lê dados antigos de versões anteriores (window.storage / localStorage)
+   para migrar para o IndexedDB sem que o usuário perca nada. */
+async function lerEstadoAntigo(){
   try{
     if(window.storage){
       const r = await window.storage.get(KEY);
-      if(r && r.value){ estado = Object.assign(estado, JSON.parse(r.value)); return "claude"; }
-      return "claude-vazio";
+      if(r && r.value) return JSON.parse(r.value);
     }
-  }catch(e){ /* chave não existe ou indisponível */ }
-  // 2) localStorage (arquivo salvo no celular/computador)
+  }catch(e){}
   try{
     const v = localStorage.getItem(KEY);
-    if(v){ estado = Object.assign(estado, JSON.parse(v)); }
+    if(v) return JSON.parse(v);
+  }catch(e){}
+  return null;
+}
+
+/* Pede ao navegador para NÃO apagar os dados sob pressão de espaço
+   (importante no celular para o histórico não sumir sozinho). */
+async function pedirArmazenamentoPersistente(){
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      if(navigator.storage.persisted && await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    }
+  }catch(e){}
+  return false;
+}
+
+async function carregarEstado(){
+  // 1) IndexedDB — armazenamento principal e durável
+  try{
+    const dado = await idbGet(KEY);
+    if(dado != null){
+      estado = Object.assign(estado, typeof dado === "string" ? JSON.parse(dado) : dado);
+      modoArmazenamento = "indexeddb";
+      return "indexeddb";
+    }
+    // IndexedDB vazio: migra dados antigos (localStorage/claude.ai), se houver
+    const antigo = await lerEstadoAntigo();
+    if(antigo){
+      estado = Object.assign(estado, antigo);
+      try{ await idbSet(KEY, JSON.stringify(estado)); }catch(e){}
+    }
+    modoArmazenamento = "indexeddb";
+    return antigo ? "indexeddb-migrado" : "indexeddb-vazio";
+  }catch(e){ /* IndexedDB indisponível — cai para localStorage */ }
+
+  // 2) localStorage (compatibilidade / navegadores sem IndexedDB)
+  try{
+    const antigo = await lerEstadoAntigo();
+    if(antigo) estado = Object.assign(estado, antigo);
+    localStorage.setItem(KEY + "-teste", "1"); localStorage.removeItem(KEY + "-teste");
+    modoArmazenamento = "local";
     return "local";
   }catch(e){}
+
+  // 3) memória (último recurso)
   modoMemoria = true;
+  modoArmazenamento = "memoria";
   return "memoria";
 }
 
@@ -429,9 +517,13 @@ function salvar(){
   salvarTimer = setTimeout(async ()=>{
     const s = JSON.stringify(estado);
     let ok = false;
-    try{ if(window.storage){ await window.storage.set(KEY, s); ok = true; } }catch(e){}
+    // principal: IndexedDB
+    try{ await idbSet(KEY, s); ok = true; }catch(e){}
+    // espelho de segurança: localStorage (best-effort)
     try{ localStorage.setItem(KEY, s); ok = true; }catch(e){}
-    if(!ok) modoMemoria = true;
+    // artefatos claude.ai, quando disponível
+    try{ if(window.storage){ await window.storage.set(KEY, s); ok = true; } }catch(e){}
+    modoMemoria = !ok;
   }, 250);
 }
 
@@ -1087,12 +1179,15 @@ function ligarEventos(){
 (async function(){
   $("inCat").innerHTML = opcoesCategoria("mantimentos");
   const origem = await carregarEstado();
+  pedirArmazenamentoPersistente();
   ligarEventos();
   renderCompra(); renderListas(); renderHistorico(); renderDashboard();
   const aviso = $("avisoStorage");
   if(modoMemoria){
     aviso.textContent = "⚠️ Sem armazenamento disponível: os dados duram só enquanto a página estiver aberta.";
-  } else if(origem==="local"){
+  } else if(modoArmazenamento==="indexeddb"){
+    aviso.textContent = "💾 Seus dados ficam guardados com segurança neste dispositivo (IndexedDB) — pode fechar o app e voltar quando quiser, sem perder o histórico.";
+  } else if(modoArmazenamento==="local"){
     aviso.textContent = "💾 Seus dados ficam salvos neste navegador, mês a mês — pode fechar e voltar quando quiser.";
   } else {
     aviso.textContent = "💾 Seus dados ficam salvos automaticamente, mês a mês.";
